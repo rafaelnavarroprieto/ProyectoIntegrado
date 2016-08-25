@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Laberinto</title>
+	<!-- <meta http-equiv="Content-Type" content="text/html; charset=utf-8" /> -->
+    <!-- <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"> -->
+    <script type="text/javascript" src="./js/three.js"></script>
+    <script type="text/javascript" src="./js/Texture.js"></script>
+    <script type="text/javascript" src="./js/StereoEffect.js"></script>
+    <script type="text/javascript" src="./js/PointerLockControls.js"></script>
+    <script type="text/javascript" src="./js/FirstPersonControls.js"></script>
+    <script type="text/javascript" src="./js/DeviceOrientationControls.js"></script>
+    <script type="text/javascript" src="./js/OrbitControls.js"></script>
+    <script type="text/javascript" src="./js/laberinto.js"></script>
+    <script type="text/javascript" src="./js/helvetiker_bold.typeface.js"></script>
+
+	<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+	<div id="container"></div>
+	<script type="text/javascript">
+
+	var camera, scene, renderer;
+	var effect, controls;
+	var element, container;
+
+	var objects = [];
+	var meta = [];
+	var canJump = false;
+	var clock = new THREE.Clock();
+	var prevTime = performance.now();
+	var velocity = new THREE.Vector3();
+	var raycaster;
+	var target = new THREE.Vector3( 0, 0, 0 );
+
+    var movementSpeed = 30 ;
+    var lookSpeed = 0.005;
+    var lookVertical = true;
+    var autoForward = false;
+    var activeLook = true;
+    var heightSpeed = false;
+    var heightCoef = 1.0;
+    var heightMin = 0.0;
+    var heightMax = 1.0;
+    var constrainVertical = false;
+    var verticalMin = 0;
+    var verticalMax = Math.PI;
+    var autoSpeedFactor = 0.0;
+    var mouseX = 0;
+    var mouseY = 0;
+    var lat = 0;
+    var lon = 0;
+    var phi = 0;
+    var theta = 0;
+    var moveForward = false;
+    var moveBackward = false;
+    var moveLeft = false;
+    var moveRight = false;
+    var freeze = false;
+    var mouseDragOn = false;
+    var viewHalfX = 0;
+    var viewHalfY = 0;
+
+	var end = false;
+
+    var textoMeta;
+
+    init();
+    animate();
+
+    function init() {
+        //Esfera cielo
+
+        var geometry = new THREE.SphereGeometry( 1000, 32, 32 );
+        var texture_cielo = THREE.ImageUtils.loadTexture(
+            'textures/patterns/sky.png'
+        );
+
+
+        var material = new THREE.MeshBasicMaterial({
+            map: texture_cielo
+        });
+
+        var sphere = new THREE.Mesh( geometry, material );
+        sphere.material.side = THREE.DoubleSide;
+        //Creación de texto 3d
+
+        var material = new THREE.MeshPhongMaterial({
+            color: 0xFFFFFF
+        });
+        var textGeom = new THREE.TextGeometry( 'Has Ganado!!!', {
+            font: 'helvetiker', // Must be lowercase!
+            weight: 'bold',
+            size: '7',
+            height: '2'
+        });
+
+        textoMeta = new THREE.Mesh( textGeom, material );
+        textoMeta.position.set(-370, 30, 435);
+        textoMeta.rotateY(-1.57);
+
+        //creación de elementos básicos
+
+        scene = new THREE.Scene();
+        scene.fog   = new THREE.FogExp2( 0xd0e0f0 , 0.0030 );
+        scene.add( sphere );
+
+        renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        element = renderer.domElement;
+        container = document.getElementById('container');
+        container.appendChild(element);
+
+        camera = new THREE.PerspectiveCamera(90, window.innerWidth/window.innerHeight, 0.01, 3000);
+        camera.position.set(-470, 10, 471);
+        scene.add(camera);
+
+        effect = new THREE.StereoEffect(renderer);
+
+        var light = new THREE.HemisphereLight( 0xffffff, 0x080820, 1 );
+        scene.add( light );
+
+        //suelo salida
+        var texture_salida = THREE.ImageUtils.loadTexture(
+            'textures/patterns/checker.png'
+        );
+
+
+        var material = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            shininess: 20,
+            shading: THREE.FlatShading,
+            map: texture_salida
+        });
+
+        var geometry = new THREE.BoxGeometry(100, 1,70);
+
+        var mesh_salida = new THREE.Mesh(geometry, material);
+        mesh_salida.position.set(-470, 1, 466);
+
+        scene.add(mesh_salida);
+
+
+        var texture = THREE.ImageUtils.loadTexture(
+            'textures/patterns/suelo.png'
+        );
+
+        var material = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            shininess: 20,
+            shading: THREE.FlatShading,
+            map: texture
+        });
+
+        var geometry = new THREE.PlaneGeometry(1000, 1000);
+
+        var mesh = new THREE.Mesh(geometry, material);
+        mesh.rotation.x = -Math.PI / 2;
+        scene.add(mesh);
+
+
+        controls	= new THREE.FirstPersonControls( camera );
+        controls.lookSpeed = 0.4;
+        controls.movementSpeed = 30;
+        controls.noFly = false;
+        controls.lookVertical = true;
+        controls.constrainVertical = false;
+        controls.verticalMin = 0;
+        controls.verticalMax = 1;
+
+
+        controlsRemote = new THREE.PointerLockControls( camera );
+        scene.add( controlsRemote.getObject() );
+
+
+        function setOrientationControls(e) {
+            if (!e.alpha) {
+                return;
+            }
+
+            controls = new THREE.DeviceOrientationControls(camera, true);
+            controls.connect();
+            controls.update();
+
+            element.addEventListener('click', fullscreen, false);
+
+            window.removeEventListener('deviceorientation', setOrientationControls, true);
+        }
+        
+        window.addEventListener('deviceorientation', setOrientationControls, true);
+
+        window.addEventListener('resize', resize, false);
+        setTimeout(resize, 1);
+
+
+        var onKeyDown = function ( event ) {
+            switch ( event.keyCode ) {
+                case 13: case 32: // space 32 , 13 multimedia mando
+                    if ( canJump === true ) velocity.y += 250;
+                        canJump = false;
+                break;
+                //228 avanzar 
+                case 228:
+                    moveForward = true;
+                break;
+                //227 retroceder
+                case 227:
+                    moveBackward = true;
+                break;
+            }
+        };
+
+        var onKeyUp = function ( event ) {
+            switch ( event.keyCode ) {
+                case 228:
+                    moveForward = false;
+                break;
+                case 227:
+                    moveBackward = false;
+                break;
+            }
+        };
+
+        document.addEventListener( 'keydown', onKeyDown, false );
+        document.addEventListener( 'keyup', onKeyUp, false );
+
+        raycaster = new THREE.Raycaster( new THREE.Vector3(), new THREE.Vector3( 0, - 1, 0 ), 0, 10 );
+
+        //paredes del laberinto
+        pintarLaberinto(scene);
+
+    }
+
+    function resize() {
+        var width = container.offsetWidth;
+        var height = container.offsetHeight;
+
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+
+        renderer.setSize(width, height);
+        effect.setSize(width, height);
+    }
+
+    function update(dt) {
+        resize();
+        camera.updateProjectionMatrix();
+        controls.update(dt);
+    }
+
+    function render(dt) {
+        raycaster.setFromCamera(new THREE.Vector2(),camera);
+        var intersects = raycaster.intersectObjects( objects );
+        var intersect = raycaster.intersectObjects( meta );
+        //Cuando colisionamos con una pared
+        if ( (intersects.length > 0 && intersects[0].distance < 1) ){
+            camera.position.set(-470, 5, 471);
+        }
+        //Limitamos que no pueda volar ni pasar del suelo
+        if (camera.position.y<10 || camera.position.y>10) {
+            camera.position.y = 10;
+        }
+        //Cuando llegamos a la meta
+        if(intersect.length > 0 && intersect[0].distance < 1){
+            end = true;
+            camera.position.set(-470, 5, 471);
+            scene.add( textoMeta );
+        }
+
+        effect.render(scene, camera);
+
+
+    }
+
+    function animate(t) {
+        requestAnimationFrame(animate);
+
+        controlsRemote.position = controls.position;
+        raycaster.ray.origin.copy( controlsRemote.getObject().position );
+
+        var intersections = raycaster.intersectObjects( objects );
+        var isOnObject = intersections.length > 0;
+
+        var time = performance.now();
+        var delta = ( time - prevTime ) / 1000;
+        velocity.x -= velocity.x * 10.0 * delta;
+        velocity.z -= velocity.z * 10.0 * delta;
+        velocity.y -= 9.8 * 100.0 * delta; 
+        controlsRemote.getObject().translateY( velocity.y * delta );
+
+
+
+        if ( controlsRemote.getObject().position.y < 10 ) {
+            velocity.y = 0;
+            controlsRemote.getObject().position.y = 10;
+            canJump = true;
+        }
+        prevTime = time;
+
+
+        //codigo update de la libreria firstpersoncontroler
+
+        if ( freeze ) {
+            return;
+        }
+        if ( heightSpeed ) {
+            var y = THREE.Math.clamp( camera.position.y, heightMin, heightMax );
+            var heightDelta = y - heightMin;
+            autoSpeedFactor = delta * ( heightDelta * heightCoef );
+        } else { 
+            autoSpeedFactor = 0.0;
+        }
+
+        var actualMoveSpeed = delta * movementSpeed;
+
+        if ( moveForward || ( autoForward && !moveBackward ) ) camera.translateZ( - ( actualMoveSpeed + autoSpeedFactor ) );
+        if ( moveBackward ) camera.translateZ( actualMoveSpeed );
+
+        if ( moveLeft ) camera.translateX( - actualMoveSpeed );
+        if ( moveRight ) camera.translateX( actualMoveSpeed );
+
+        var actualLookSpeed = delta * lookSpeed;
+        if ( !activeLook ) {
+            actualLookSpeed = 0;
+        }
+
+        var verticalLookRatio = 1;
+        if ( constrainVertical ) {
+            verticalLookRatio = Math.PI / ( verticalMax - verticalMin );
+        }
+        lon += mouseX * actualLookSpeed;
+        if( lookVertical ) lat -= mouseY * actualLookSpeed * verticalLookRatio;
+        
+        lat = Math.max( - 85, Math.min( 85, lat ) );
+        phi = THREE.Math.degToRad( 90 - lat );
+        theta = THREE.Math.degToRad( lon );
+
+        if ( constrainVertical ) {
+            phi = THREE.Math.mapLinear( phi, 0, Math.PI, verticalMin, verticalMax );
+        }
+
+        var targetPosition = target,
+        position = camera.position;
+
+        targetPosition.x = position.x + 100 * Math.sin( phi ) * Math.cos( theta );
+        targetPosition.y = position.y + 100 * Math.cos( phi );
+        targetPosition.z = position.z + 100 * Math.sin( phi ) * Math.sin( theta );
+
+        camera.getWorldDirection( targetPosition );
+
+        update(clock.getDelta());
+        render(clock.getDelta());
+
+    }
+
+    function fullscreen() {
+        if (container.requestFullscreen) {
+            container.requestFullscreen();
+        } else if (container.msRequestFullscreen) {
+            container.msRequestFullscreen();
+        } else if (container.mozRequestFullScreen) {
+            container.mozRequestFullScreen();
+        } else if (container.webkitRequestFullscreen) {
+            container.webkitRequestFullscreen();
+        }
+    }
+
+	</script>
+</body>
+</html>

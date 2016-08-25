@@ -1,0 +1,27 @@
+body {
+  margin: 0px;
+  overflow: hidden;
+}
+
+#container , #winner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+#winner{
+	display:none;
+	z-index: 999;
+	background: rgba(0,0,0,0.5);
+	text-align: center;
+	top: 50%;
+	-ms-transform: translateY(-50%);
+	-webkit-transform: translateY(-50%);
+	transform: translateY(-50%);
+}
+#winner h3 {
+	color:white;
+	font-size: 100%;
+}
