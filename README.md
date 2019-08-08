@@ -1,3 +1,6 @@
+# Try it
+https://rafaelnavarroprieto.github.io/ProyectoIntegrado/
+
 # laberintoThreejs
 Escenario final realizado para el proyecto final de grado de desarrollo web en el centro IES Gran Capitán realizado por Pablo Durán Camacho y Rafael Navarro Prieto.
 
@@ -11,4 +14,3 @@ Para obtener una buena experiencia es recomendable probar el entorno con los sig
 -Controlador bluetooth para poder desplazarse por el entorno
 
 Aquellas personas que no tengan opción de probar el entorno vía móvil pueden probarlo desde su ordenador teniendo en cuenta que el curso simulará el giro de la cámara como si usaramos unas HDM. En cuanto al mando bluetooth, por motivos de incompatibilidad con three.js, el desplazamiento solo se puede ejecutar hacia delante y atrás teniendo el mando en modo multimedia.
-
